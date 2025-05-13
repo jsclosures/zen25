@@ -1,0 +1,2110 @@
+<html>
+<head>
+<style>
+	.main {
+		
+	}
+	.input {
+		  border-radius: 12px;
+		  background: #fff;
+		  padding: 20px; 
+		  border: 0px solid black;
+	}
+	.message {
+		  border-radius: 12px;
+		  background: #fff;
+		  padding: 20px 20px 0px 20px; 
+		  border: 0px solid black;
+	}
+	.input input {
+		  padding: 5px;
+		 font-size: 16px;
+		 border-width: 1px;
+		 border-color: #CCCCCC;
+		 background-color: #FFFFFF;
+		 color: #000000;
+		 border-style: solid;
+		 border-radius: 12px;
+		 width: 100%;
+		 box-shadow: 0px 0px 5px rgba(66,66,66,.75);
+		 text-shadow: 0px 0px 5px rgba(66,66,66,.75);
+		 outline:none;
+	}
+	.result {
+	}
+	.resultleftside {
+		width: 49%;
+		float: left;
+	}
+	.resultrightside {
+		width: 49%;
+		float: right;
+	}
+	.section {
+		border-radius: 12px;
+		  background: #c0c0c0;
+		  padding-bottom: 20px; 
+		  padding-left: 20px; 
+		  padding-right: 20px;
+		  padding-top: 10px; 		  
+		  margin-top: 10px;
+		  overflow: auto;
+	}
+	.popup {
+		 padding: 5px;
+		 font-size: 16px;
+		 border-width: 1px;
+		 border-color: #CCCCCC;
+		 background-color: #FFFFFF;
+		 color: #000000;
+		 border-style: solid;
+		 border-radius: 2px;
+		 width: 100%;
+		 box-shadow: 0px 0px 5px rgba(66,66,66,.75);
+		 text-shadow: 0px 0px 5px rgba(66,66,66,.75);
+		 outline:none;
+		 overflow-y: auto;
+	}
+	.popupitem {
+		list-style-type: none;
+	}
+	.header {
+		background-color: #c0c0c0;
+		height: 20px;
+		width: 100%;
+		color: black;
+		padding: 10px;
+	}
+	.headerbutton {
+		height: 10px;
+		width: 10px;
+		color: black;
+		float: right;
+	}
+</style>
+<script>
+
+
+
+function init(){
+	var CURRENTCONTEXT = {alias: "ZEN"};
+	CURRENTCONTEXT.setBusy = function(mode,message,autoClose){
+		console.log("busy",mode,message,autoClose);
+	}
+	WIDGETFACTORY.setCurrentContext(CURRENTCONTEXT);
+	ZEN.setCurrentContext(CURRENTCONTEXT);
+	HANDLERS.setCurrentContext(CURRENTCONTEXT);
+	
+	let mainPanel = WIDGETFACTORY.buildWidget({which:"div",class: "main"});
+	WIDGETFACTORY.addWidgetToContainer({child: mainPanel});
+	
+	let inputPanel = WIDGETFACTORY.buildWidget({which:"div",class: "input"});
+	WIDGETFACTORY.addWidgetToContainer({parent: mainPanel,child: inputPanel});
+	
+	let searchBox = WIDGETFACTORY.buildWidget({which:"input",type: "text"});
+	WIDGETFACTORY.addWidgetToContainer({parent: inputPanel,child: searchBox});
+	WIDGETFACTORY.addHandler({widget: searchBox,handler: [{name: "onenter",callback: handleInput}]});
+	
+	let messageBox = WIDGETFACTORY.buildWidget({which:"div",type: "text",class: "message"});
+	WIDGETFACTORY.addWidgetToContainer({parent: inputPanel,child: messageBox});
+	
+	let resultPanel = WIDGETFACTORY.buildWidget({which:"div",class: "result"});
+	WIDGETFACTORY.addWidgetToContainer({parent: mainPanel,child: resultPanel});	
+	
+	let cContext = WIDGETFACTORY.getCurrentContext();
+	cContext.mainPanel = mainPanel;
+	cContext.inputPanel = inputPanel;
+	cContext.searchBox = searchBox;
+	cContext.resultPanel = resultPanel;
+	cContext.messageBox = messageBox;
+}
+function handleClick(){
+	let cContext = WIDGETFACTORY.getCurrentContext();
+	let value = this.selection;
+	cContext.searchBox.value = value;
+	cContext.searchBox.focus();
+}
+
+let currentState = false;
+function handleInput(event){
+	console.log(event);
+	let input = event.srcElement.value;
+	
+	function callback(rData){
+		console.log(rData);
+		let cContext = WIDGETFACTORY.getCurrentContext();
+		let resultPanel = cContext.resultPanel;
+		
+		for(let p in rData){	
+			let currentFrame = rData[p];
+			
+			
+			if( currentFrame.isComplete ) {
+				currentState = false;
+				cContext.messageBox.innerHTML = "";
+				
+				if( currentFrame.frameType && HANDLERS.hasOwnProperty(currentFrame.frameType) ){
+					HANDLERS[currentFrame.frameType]({currentFrame: currentFrame,parent: resultPanel,currentState: currentState});
+				}
+				else {
+					let option = WIDGETFACTORY.buildWidget({which:"div",class: "section",innerHTML: currentFrame.response});
+					WIDGETFACTORY.addWidgetToContainer({parent: resultPanel,child: option,insertBefore:true});
+					WIDGETFACTORY.addHandler({widget: option,handler: [{name: "click",callback: handleClick.bind({selection: currentFrame.response})}]});
+				}
+			}
+			else {
+				cContext.messageBox.innerHTML = currentFrame.response;
+				/*let option = WIDGETFACTORY.buildWidget({which:"div",class: "section",innerHTML: currentFrame.response});
+				WIDGETFACTORY.addWidgetToContainer({parent: resultPanel,child: option,insertBefore:true});
+				WIDGETFACTORY.addHandler({widget: option,handler: [{name: "click",callback: handleClick.bind({selection: currentFrame.response})}]});*/
+				
+				/*WIDGETFACTORY.showOptions({show: true,onclick: function(args){WIDGETFACTORY.showOptions({show: false});WIDGETFACTORY.getCurrentContext().searchBox.value = this.selection;},items: [{value: 1,text:"one"}]});
+				*/
+				console.log(rData);
+				
+				if( rData && rData.length > 0 ){
+					let currentFrame = rData[0]
+					let currentField = currentFrame.currentField;
+					
+					if( currentField.options ){
+						if( typeof(currentField.options) === 'string' ){
+							let oCallback = function(oData){
+								let field = this.currentField;
+								
+								let callback = function(event){
+									WIDGETFACTORY.showOptions({show: false});
+									WIDGETFACTORY.getCurrentContext().searchBox.value = this.selection;
+									WIDGETFACTORY.getCurrentContext().searchBox.focus();
+									let eventCallback = WIDGETFACTORY.getHandler({widget: WIDGETFACTORY.getCurrentContext().searchBox,type: "onenter"})[0];
+									let fauxEvent = {keyCode: 13,preventDefault: function(){},srcElement: WIDGETFACTORY.getCurrentContext().searchBox };
+									eventCallback(fauxEvent);
+								};
+								
+								WIDGETFACTORY.showOptions({show: true,onclick: callback,items: oData.items});
+									
+							}
+							
+							let func = FUNCTIONS.getFunction({which: currentField.options});
+							
+							if( func ){
+								let newFunc = func.bind({currentField: currentField});
+								newFunc({callback: oCallback});
+							}
+							
+						}
+						else {
+							let callback = function(event){
+								WIDGETFACTORY.showOptions({show: false});
+								WIDGETFACTORY.getCurrentContext().searchBox.value = this.selection;
+								WIDGETFACTORY.getCurrentContext().searchBox.focus();
+								let eventCallback = WIDGETFACTORY.getHandler({widget: WIDGETFACTORY.getCurrentContext().searchBox,type: "onenter"})[0];
+								let fauxEvent = {keyCode: 13,preventDefault: function(){},srcElement: WIDGETFACTORY.getCurrentContext().searchBox };
+								eventCallback(fauxEvent);
+							};
+							
+							WIDGETFACTORY.showOptions({show: true,onclick: callback,items: currentField.options});
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	event.srcElement.value = '';
+	if( !currentState ){
+		currentState = {input: input,callback: callback};
+	}
+	else {
+		currentState.input = input;
+	}
+		
+	ZEN.respond(currentState);
+}
+
+const WIDGETFACTORY = {
+	CURRENTCONTEXT: {},
+	merge: function(source,target){
+		for(let p in source){
+			if( source.hasOwnProperty(p) ){
+				target[p] = source[p];
+			}
+		}
+	},
+	setCurrentContext: function(c){ WIDGETFACTORY.CURRENTCONTEXT = c; },
+	getCurrentContext: function(){ return( WIDGETFACTORY.CURRENTCONTEXT ); },
+	addWidgetToContainer: function(args){
+		if( args.parent ){
+			if( args.insertBefore &&  args.parent.childNodes && args.parent.childNodes.length > 0 )
+				args.parent.insertBefore(args.child,args.parent.childNodes[0]);
+			else
+				args.parent.appendChild(args.child);
+		}
+		else {
+			for(var i = document.body.childNodes.length - 1; i >= 0; --i) {
+			  document.body.removeChild(document.body.childNodes[i]);
+			}
+			document.body.appendChild(args.child);
+		}
+	},
+	buildWidget: function(args) {
+		let result = document.createElement(args.which);
+		
+		if( result ){
+			for(let p in args){
+				if( p != 'which' ){
+					if( typeof(args[p]) == 'object' ){
+						for(let a in args[p]){
+							result[p][a] = args[p][a];
+						}
+					}
+					else if( p == 'innerHTML' ){
+						result.innerHTML = args[p];
+					}
+					else {
+						result.setAttribute(p,args[p]);
+					}
+				}
+			}
+			result.id = args.id ? args.id : "id" + new Date().getTime();
+		}
+		
+		return( result );
+	},
+	addHandler: function(args){
+		let result = args.widget;
+		
+		if( result && args.handler ){
+			if( typeof(args.handler) == 'object' ){
+				for(let h in args.handler){
+					if( args.handler[h].name == 'onenter' ){
+						let wrapper = function(event) {
+							if( event.preventDefault )
+								event.preventDefault();
+							  // Number 13 is the "Enter" key on the keyboard
+							  if (event.keyCode === 13) {
+								this.callback(event);
+							  }
+						}
+						if( !result.eventListenerList ){
+							result.eventListenerList = [];
+						}
+						let callback = wrapper.bind({callback: args.handler[h].callback});
+						result.eventListenerList.push({type: args.handler[h].name,callback: callback});
+						
+						result.addEventListener("keyup",callback);
+					}
+					else {
+						if( !result.eventListenerList ){
+							result.eventListenerList = [];
+						}
+						result.eventListenerList.push({type: args.handler[h].name,callback: args.handler[h].callback});
+						result.addEventListener(args.handler[h].name,args.handler[h].callback);
+					}
+				}
+			}
+		}
+		
+		return( result );
+	},
+	clearChildren: function(args){
+		let result = args.widget;
+		
+		if( result && result.childNodes ){
+			for(var i = result.childNodes.length - 1; i >= 0; --i) {
+			  result.removeChild(result.childNodes[i]);
+			}
+		}
+		
+		return( result );
+	},
+	removeHandler: function(args){
+		let result = args.widget;
+		
+		if( result && args.handler ){
+			if( typeof(args.handler) == 'object' ){
+				for(let h in args.handler){
+					result.removeEventListener(args.handler[h].name);
+					for(let e = result.eventListenerList.length -1;e >=0;e--){
+						if( result.eventListenerList[e].type == args.type ){
+							result.splice(e,1);
+						}
+					}
+				}
+			}
+		}
+		
+		return( result );
+	},
+	getHandler: function(args){
+		let result = [];
+		let widget = args.widget;
+		
+		if( widget.eventListenerList ){
+			for(let e in widget.eventListenerList){
+				if( widget.eventListenerList[e].type == args.type ){
+					result.push(widget.eventListenerList[e].callback);
+				}
+			}
+		}
+		
+		return( result );
+	},
+	setStyle: function(args){
+		let result = args.widget;
+		
+		if( result && args.style ){
+			if( typeof(args.style) == 'object' ){
+				for(let h in args.style){
+					result.style[h] = args.style[h];
+				}
+			}
+		}
+		
+		return( result );
+	},
+	showOptions: function(args){
+		let bbox = WIDGETFACTORY.getCurrentContext().searchBox.getBoundingClientRect();
+		let parent = WIDGETFACTORY.getCurrentContext().searchBox.parentNode;
+		
+		if( bbox && parent ){
+			let popup = WIDGETFACTORY.getCurrentContext().popup;
+			
+			if( !popup ){
+				popup = WIDGETFACTORY.buildWidget({which:"ul",class: "popup"});
+				WIDGETFACTORY.addWidgetToContainer({parent: parent,child: popup});
+				WIDGETFACTORY.getCurrentContext().popup = popup;
+			}
+			WIDGETFACTORY.clearChildren({widget: popup});
+			
+			if( args.show ){
+				WIDGETFACTORY.setStyle({widget: popup,style: {top: bbox.top + bbox.height + "px",width: bbox.width + "px",height: "60px",display: "inline-block",visibility: "visible"}});
+				
+				if( args.items ){
+					for(let p in args.items){
+						let option = WIDGETFACTORY.buildWidget({which:"li",class: "popupitem",value: args.items[p].id,innerHTML: args.items[p].name});
+						WIDGETFACTORY.addWidgetToContainer({parent: popup,child: option});
+						WIDGETFACTORY.addHandler({widget: option,handler: [{name: "click",callback: args.onclick.bind({selection: args.items[p].id})}]});
+					}
+				}
+			}
+			else {
+				WIDGETFACTORY.setStyle({widget: popup,style:{display: "none",visibility: "eb"}});
+			}
+		}
+	},
+	makeXHRRequest: function(type, url, data, callback, callbackOnFailure,headers,doRaw) {
+		var httpRequest = new XMLHttpRequest();
+
+		if (!httpRequest) {
+			alert('Cannot create an XMLHTTP instance');
+			return false;
+		}
+		
+		
+		httpRequest.onreadystatechange = function (evt) {
+			if (httpRequest.readyState != 4 || httpRequest.status != 200) {
+
+				return;
+			} else if (httpRequest.readyState === 4 && httpRequest.status > 399) {
+				console.error("Error: " + httpRequest.status + " ");
+				if (callbackOnFailure) {
+					//eval(callback + '(httpRequest.responseText)');
+					callbackOnFailure(httpRequest.responseText);
+				}
+
+			} else {
+				//console.log(httpRequest.responseText);
+				var data = httpRequest.responseText;
+				console.log("On Ready State Change Rec'd ");
+				console.log(JSON.stringify(evt));
+				//  eval(callback + '(data)');
+				if( doRaw ){
+					callback(data);
+				}
+				else {
+					callback(JSON.parse(data));
+				}
+			}
+		};
+		
+		
+		
+		httpRequest.open(type, url);
+		
+		if( headers ){
+				for(var i = 0;i < headers.length;i++){
+					httpRequest.setRequestHeader(headers[i].name,headers[i].value);		
+				}
+		}
+		
+		if (type === "POST" || type === "PUT") {
+			httpRequest.send(data);
+		} else {
+			httpRequest.send();
+		}
+	},
+	getScreenDimensions: function(padX, padY) {
+		let windowDimension;
+		
+		let winW = 630, winH = 460;
+		if (document.body && document.body.offsetWidth) {
+		 windowDimension.w = document.body.offsetWidth;
+		 windowDimension.h = document.body.offsetHeight;
+		}
+		if (document.compatMode=='CSS1Compat' &&
+			document.documentElement &&
+			document.documentElement.offsetWidth ) {
+		 windowDimension.w = document.documentElement.offsetWidth;
+		 windowDimension.h = document.documentElement.offsetHeight;
+		}
+		if (window.innerWidth && window.innerHeight) {
+		 windowDimension.w = window.innerWidth;
+		 windowDimension.h = window.innerHeight;
+		}
+
+		return( {screenWidth: windowDimension.w - padX,
+				screenHeight: windowDimension.h - padY,
+				windowWidth: windowDimension.w,
+				windowHeight: windowDimension.h} );
+	}
+};
+
+const ZEN = {
+			CURRENTCONTEXT: {},
+			setCurrentContext: function(context){
+				ZEN.CURRENTCONTEXT = context;
+			},
+			getCurrentContext: function(){
+				return( ZEN.CURRENTCONTEXT );
+			},
+			brains: false,
+			replaceAll: function(str,find, replace) {
+			  return str ? str.replace(new RegExp(find, 'g'), replace) : "";
+			},
+			speakMessage: function(message){
+				try{
+					if( window.speechSynthesis ){
+						window.speechSynthesis.speak(
+							new SpeechSynthesisUtterance(message)
+						);
+					}
+					else if( meSpeak ){
+						meSpeak.speak(message)
+					}
+				}
+				catch(exp){
+					console.log("no speech engine");
+				}
+			},
+			buildRegularExpression: function(args,slotDefinition){
+				var result = slotDefinition.text;
+				var slotDef = slotDefinition.condition.toLowerCase();
+				
+				if( slotDef == 'startswith' ){
+					result = "^" + result;
+				}
+				else if( slotDef == 'endswith' ){
+					result = result + "$";
+				}
+				else if( slotDef == 'contains' ){
+					result = result;
+				}
+				
+				return( result );
+			},
+			extractKeyWords: function(args,input,grammar){
+				var result = {keywords: "",useAsInput: true};
+				var condition = grammar.condition.toLowerCase();
+				
+				if( condition == "startswith" ) {
+					result.keywords = ZEN.replaceAll(input,grammar.text,"");
+				}
+				else if( condition == "endswith" ) {
+					result.keywords = ZEN.replaceAll(input,grammar.text,"");
+				}
+				else if( condition == "contains" ) {
+					var regularStr = ZEN.buildRegularExpression(args,grammar);          
+					var regEx = new RegExp(regularStr,"i");
+					var execResult = regEx.exec(input);
+					
+					if( execResult.length > 1 ){
+						result.keywords = execResult[1];
+					}
+					else {
+						result.keywords = ZEN.replaceAll(input.toLowerCase(),grammar.text,"");
+					}
+					/*
+					var idx = grammar.text.indexOf(".*");
+					
+					var newGrammar = grammar.text;
+					if( idx > -1 ){
+						var startGrammar = idx > 0 ? newGrammar.substring(0,idx) : newGrammar.substring(idx+2);
+						var endGrammar = newGrammar.substring(idx+2);
+						
+						result.keywords = ZEN.replaceAll(input,startGrammar,"");
+						result.keywords = ZEN.replaceAll(result.keywords,endGrammar,"");
+					}
+					else {
+						result.keywords = zen.replaceAll(input,newGrammar,"");
+					}*/
+					
+				}
+				else if( condition == "analytical" ) {
+					var keyWordsInfo = {keywords: [ZEN.replaceAll(input,grammar.text,"")],confidence: 1};//anaylitical
+					result.info = keyWordsInfo;
+					result.keywords = keyWordsInfo.keywords;
+					result.discarded = "";
+					result.useAsInput = keyWordsInfo.confidence > 0;
+				}
+				else if( condition == "any" ) {
+					result.keywords = ZEN.replaceAll(input,grammar.text,"");
+				}
+				
+				if( result.keywords ){
+					result.keywords = result.keywords.trim();
+				}
+				
+				return( result );
+			},
+			replaceTokens: function(args,responseText){
+				var result = responseText;
+				
+				if( result.indexOf("@TIME") > -1 ){
+					result = ZEN.replaceAll(result,"@TIME","" + new Date());
+				}
+				
+				if( result.indexOf("@DAY") > -1 ){
+					result = ZEN.replaceAll(result,"@DAY",dojo.date.locale.format(new Date(),{datePattern: "EEEE",selector: "date"}));
+				}
+				
+				if( result.indexOf("@SYSTEMNAME") > -1 ){
+					result = ZEN.replaceAll(result,"@SYSTEMNAME","Benjamin");
+				}
+				
+				if( result.indexOf("@KEYWORDS") > -1 ){
+					result = ZEN.replaceAll(result,"@KEYWORDS",args.currentState.keywords ? args.currentState.keywords : args.keywords);
+				}
+				
+				if( result.indexOf("@CREATORNAME") > -1 ){
+					result = ZEN.replaceAll(result,"@CREATORNAME","God the Father");
+				}
+				
+				if( result.indexOf("@ALIAS") > -1 ){
+					result = ZEN.replaceAll(result,"@ALIAS",ZEN.getCurrentContext().alias);
+				}
+				
+				for(;;){
+					let sIdx = result.indexOf("@SLOT");
+					
+					if( typeof(sIdx) == 'number' && sIdx > -1 && args.currentState ){
+						let fStr = result.substring(sIdx + "@SLOT".length + 1);
+						sIdx = -1;
+						for(let i =0;i < fStr.length;i++){
+							if( fStr[i] == ' ' || fStr[i] == '\'' || fStr[i] == '.' || fStr[i] == ',' ){
+								sIdx = i;
+								break;
+							}
+						}
+						
+						let fieldName = sIdx > -1 ? fStr.substring(0,sIdx).trim() : fStr;
+						//console.log(fieldName);
+						result = ZEN.replaceAll(result,"@SLOT." + fieldName,args.currentState[fieldName]);
+					}
+					else {
+						break;
+					}
+				}
+				
+				if( result.indexOf("@QUERY") > -1 ){
+					//post a message to results view to do a query
+					var idx = result.indexOf("@QUERY");
+					var endIndex = result.indexOf(" ",idx+1);
+					if( endIndex < 1 )
+						endIndex = result.length;
+					
+					var query = result.substring(idx + "@QUERY:".length,endIndex);
+					
+					var data = {id: "zen",sourceId: "dialog",context: args,query: query};
+					
+					//getCurrentContext().notifyDataChange(data);
+					
+					result = ZEN.replaceAll(result,"@QUERY:" + query,"");
+				}
+				
+				if( result.indexOf("@ACTION") > -1 ){
+					//post a message to results view to do a query
+					var idx = result.indexOf("@ACTION");
+					var endIndex = result.indexOf(" ",idx+1);
+					if( endIndex < 1 )
+						endIndex = result.length;
+					
+					var action = result.substring(idx + "@ACTION:".length,endIndex);
+					
+					var doLater = function(){
+						console.log("action: " + action);
+						var i = action.indexOf(":");
+						
+						var a = i > 0 ? action.substring(0,i) : action;
+						
+						if( i < action.length ){
+							var p = action.substring(i+1);
+							var pi = p.indexOf(":");
+							
+							if( pi > 0 ){
+								var viewName = p.substring(0,pi);
+								var t = p.substring(pi+1);
+								var target = {};
+								target[t] = args.currentState ? args.currentState[t] : "";
+								var doLater = function(){
+									anyWidgetById(viewName).setTarget(target);
+								}
+								ZEN.getCurrentContext().setCurrentView(viewName,[doLater]);
+							}
+							else
+								ZEN.getCurrentContext()[a](p);
+						}
+						else
+							ZEN.getCurrentContext()[a]();
+					}
+					setTimeout(doLater,2000);
+					
+					result = ZEN.replaceAll(result,"@ACTION:" + action,"");
+				}
+				
+				if( result.indexOf("@LOGOUT") > -1 ){
+					result = "GOODBYE";
+					var doLater = function(){
+						ZEN.getCurrentContext().logout();
+					}
+					setTimeout(doLater,1000);
+				}
+				
+				return( result );
+			},
+			buildSlot: function(args,currentState){
+				var result = {};
+				var slotValue = false;
+				if( currentState ){
+					//add check to abort and help grammars on input to see if there is a match
+					args.currentState = currentState;
+					slotValue = args.currentState["_slotValue"];
+					var grammarIndex = args.currentState["_grammarIndex"];
+					args.currentState.used = slotValue.grammar[grammarIndex];
+					var keyWordsInfo = ZEN.extractKeyWords(args,args.input,slotValue.grammar[grammarIndex]);
+					args.currentState.keyWordsInfo = keyWordsInfo;
+					
+					args.currentState.keywords = keyWordsInfo.keywords;
+					args.currentState.action = slotValue.action;
+					args.currentState.input = args.input;
+				}
+				else {
+					var tCurrentState = args.currentState;
+					result.keywords = args.input;
+					result.action = tCurrentState.action;
+					result.used = tCurrentState.used;
+					var currentField = tCurrentState.currentField;
+					if( currentField ){
+						args.currentState[currentField.name] = args.input;
+					}
+					slotValue = args.currentState["_slotValue"];
+				   
+				}
+				
+				var isValid = true;
+				
+				if( slotValue.field ){
+					for(var i = 0;i < slotValue.field.length;i++){
+						var currentField = slotValue.field[i];
+						if( currentField.required && !args.currentState[currentField.name] && args.currentState.keywords ){
+							if( args.currentState.keyWordsInfo.useAsInput ) {
+								args.currentState[currentField.name] = args.currentState.keywords;
+								args.currentState.keywords = "";
+							}
+						}
+						if( currentField.required && !args.currentState[currentField.name] ){
+							
+							result.response = ZEN.replaceTokens(args,currentField.directive[ZEN.random(currentField.directive.length)]);
+							result.currentField = currentField;
+							
+							isValid = false;
+							break;
+						}
+					} 
+				}
+
+				if( isValid ) {
+					result.response = ZEN.replaceTokens(args,slotValue.response[ZEN.random(slotValue.response.length)]);
+					result.isComplete = true;
+					result.previousState = args.currentState;
+					result.frameType = args.currentState.frameType;
+				}
+				else {
+					args.currentState.currentField = result.currentField;
+				}
+				
+				return( result );
+			},
+			parse: function(args){
+				var result = new Array();
+					
+					if( args.hasOwnProperty("currentState") ){
+						var newResult = ZEN.buildSlot(args);
+										
+						result.push(newResult);
+					}
+					else {
+						for (var slotName in ZEN.brains) {
+								var slotValue = ZEN.brains[slotName];
+								
+								for(var i = 0;i < slotValue.grammar.length;i++){
+										var regularStr = ZEN.buildRegularExpression(args,slotValue.grammar[i]);
+										
+										var regEx = new RegExp(regularStr,"i");
+										
+										if( regEx.test(args.input.toLowerCase()) ){
+												if( !args.currentState ){
+													var currentState = {frameType: slotName,"_grammarIndex": i,"_input": args.input, "_slotValue": slotValue};
+													
+													var newResult = ZEN.buildSlot(args,currentState);
+													
+													result.push(newResult);
+												}
+												else {
+													var newResult = {};
+			   
+													newResult.used = slotValue.grammar[i];
+													 var keyWordInfo = ZEN.extractKeyWords(args,args.input,slotValue.grammar[i]);
+													newResult.keywords = keyWordInfo.keywords;
+													newResult.action = slotValue.action;
+													
+													result.push(newResult);
+												}
+												
+												break;
+										}
+								}
+						}
+					}
+					
+					if( result.length == 0 ){
+						var doFinally = function(data){
+						   if( data.items && data.items.length > 0 ){
+							result.push({"action": "GET","response": data.items[0].body}); 
+							}
+							else {
+								result.push({"action": "PUT","response": "NOIDEA"}); 
+							}
+							
+							args.parseCallback(result);
+						}
+						
+						
+						var url = "http://localhost:8080/restservice?contenttype=ZEN&question=" + ZEN.replaceAll(args.input," ","%20");
+					
+						let headers = [{name: "Authorization",value: ""}];//,{name: "Content-Type",value: "application/x-www-form-urlencoded"}];
+						let newCallback = doFinally.bind({});
+						WIDGETFACTORY.makeXHRRequest("GET",url,false, newCallback, newCallback,headers);
+						
+						 
+					}
+					else {
+						result = result.sort(function(a,b){ return( a.score < b.score)});
+						
+						 args.parseCallback(result);
+					}
+			},
+			random: function(max){
+				return( (Math.random() * max | 0) );	
+			},
+			getSummary: function(callback){
+				var result = {};
+				
+				if( ZEN && ZEN.brains ){
+					for (var slotName in ZEN.brains) {
+						var slotValue = ZEN.brains[slotName];
+						
+						if( slotValue.grammar && slotValue.grammar.length > 0 ){
+							result[slotName] = slotValue.grammar[0].text;
+						}
+					}
+				}
+				else {
+					result.message = "NOBRAINS";
+				}
+				
+				callback(result);
+			},
+			respond: function(args){
+				var state = {"action": "PUT","response": "NOIDEA"};
+				ZEN.getCurrentContext().setBusy(true,"PLEASEWAIT");
+					
+					var parseCallback = function(data){
+						if( args.callback ){
+								args.callback(data);
+						}
+						
+						ZEN.getCurrentContext().setBusy(false);
+					}
+					args.parseCallback = parseCallback;
+					
+				if( ZEN.brains ){
+					ZEN.parse(args);
+				}
+				else {
+					var doLater = function(data){
+						
+						ZEN.brains = data;
+						
+						ZEN.parse(args);
+					}
+					console.log(document.GRAMMAR);
+					if( document.GRAMMAR ){
+						doLater(document.GRAMMAR);
+					}
+					else {
+						var url = "http://localhost:8988/conf/grammar.json";
+						
+						let headers = [{name: "Authorization",value: ""}];//,{name: "Content-Type",value: "application/x-www-form-urlencoded"}];
+						let newCallback = doLater.bind({});
+						WIDGETFACTORY.makeXHRRequest("GET",url,false, newCallback, newCallback,headers);
+					}
+				}	
+			}
+		};
+	
+document.GRAMMAR = {
+    "SYSTEMNAME" : {
+        "action" : "PUT",
+        "score": 1,
+        "response" : [
+            "Hello @ALIAS I am @SYSTEMNAME",
+            "Hello @ALIAS @SYSTEMNAME is my name"
+        ],
+        "grammar" : [
+            {
+                "text" : "who is this",
+                "condition" : "contains"
+            },
+            {
+                "text" : "who are you",
+                "condition" : "contains"
+            },
+            {
+                "text" : "who there",
+                "condition" : "contains"
+            },
+            {
+                "text" : "hello there",
+                "condition" : "contains"
+            }
+        ]
+    },
+    "CREATOR" : {
+        "action" : "PUT",
+        "score": 1,
+        "response" : [
+            "@CREATORNAME made this application",
+            "@CREATORNAME is my maker"
+        ],
+        "grammar" : [
+            {
+                "text" : "who made",
+                "condition" : "contains"
+            },
+            {
+                "text" : "your father",
+                "condition" : "contains"
+            }
+        ]
+    },
+    "WHOAMI" : {
+        "action" : "PUT",
+        "score": 1,
+        "response" : [
+            "@ALIAS is your name",
+            "your name is @ALIAS"
+        ],
+        "grammar" : [
+            {
+                "text" : "who am i",
+                "condition" : "contains"
+            }
+        ]
+    },
+    "QUESTIONTIME" : {
+        "action" : "PUT",
+        "score": 1,
+        "response" : [
+            "The time is @TIME",
+            "It is @TIME"
+        ],
+        "grammar" : [
+            {
+                "text" : "what time",
+                "condition" : "contains"
+            }
+        ]
+    },
+    "QUESTIONDAY" : {
+        "action" : "PUT",
+        "score": 1,
+        "response" : [
+            "The day is @DAY",
+            "It is @DAY"
+        ],
+        "grammar" : [
+            {
+                "text" : "what day",
+                "condition" : "contains"
+            }
+        ]
+    },
+    "QUESTIONALIVE" : {
+        "action" : "PUT",
+        "score": 1,
+        "response" : [
+            "I think I am alive",
+            "It is hard to tell, I feel great"
+        ],
+        "grammar" : [
+            {
+                "text" : "are you alive",
+                "condition" : "contains"
+            },
+            {
+                "text" : "do you",
+                "condition" : "contains"
+            }
+        ]
+    },
+    "QUESTIONWHO" : {
+        "action" : "PUT",
+        "score": 1,
+        "response" : [
+            "@SLOT.name is a dog",
+            "@SLOT.name rules"
+        ],
+        "failedResponse" : [
+            "@SLOT.name is unknown to me",
+            "@SLOT.name is missing"
+        ],
+        "grammar" : [
+            {
+                "text" : "who created",
+                "condition" : "contains"
+            },
+            {
+                "text" : "about",
+                "condition" : "contains"
+            },
+            {
+                "text" : "who is",
+                "condition" : "contains"
+            }
+        ],
+        "field" : [
+            {
+                "name" : "name",
+                "type" : "text",
+                "required": true,
+                "directive" : [
+                    "who are you asking about",
+                    "tell me the name of the person you want info about"
+                ]
+            }
+        ]
+    },
+    "QUESTIONWHERE" : {
+        "action" : "PUT",
+        "score": 1,
+        "response" : [
+            "@SLOT.name lives in colorado",
+            "@SLOT.name live on the earth"
+        ],
+        "failedResponse" : [
+            "@SLOT.name is missing",
+            "@SLOT.name is unknown to me"
+        ],
+        "grammar" : [
+            {
+                "text" : "where is ([a-z]*)",
+                "condition" : "contains"
+            },
+            {
+                "text" : "where does ([a-z]*)",
+                "condition" : "contains"
+            }
+        ],
+        "field" : [
+            {
+                "name" : "name",
+                "type" : "text",
+                "required": true,
+                "directive" : [
+                    "what person are you talking about",
+                    "tell me the name of the person you want to find"
+                ]
+            }
+        ]
+    },
+    "CONNECT" : {
+        "action" : "GET",
+        "score": 1,
+        "response" : [
+            "Connected to Solr",
+            "I got a hold of Solr, what do you want to do?"
+        ],
+        "failedResponse" : [
+            "Unable to get logs",
+            "The logs are unavailable."
+        ],
+        "grammar" : [
+            {
+                "text" : "connect",
+                "condition" : "contains"
+            },
+            {
+                "text" : "connect solr",
+                "condition" : "contains"
+            }
+        ],
+        "field" : [
+            {
+                "name" : "username",
+                "type" : "text",
+                "required": true,
+                "directive" : [
+                    "Enter User Name",
+                    "What is the user name?"
+                ]
+            },
+			{
+                "name" : "password",
+                "type" : "text",
+                "required": true,
+                "directive" : [
+                    "Enter Password",
+                    "What is the password?"
+                ]
+            },
+			{
+                "name" : "solr",
+                "type" : "text",
+                "required": true,
+                "directive" : [
+                    "Enter Solr Connection Info",
+                    "What is the connection info for solr?"
+                ]
+            }
+        ]
+    },
+	"CLEAR" : {
+        "action" : "DELETE",
+        "score": 1,
+        "response" : [
+            "Hello @ALIAS I cleared @SYSTEMNAME memory",
+            "Hello @ALIAS @SYSTEMNAME has been reset"
+        ],
+        "grammar" : [
+            {
+                "text" : "clear",
+                "condition" : "contains"
+            },
+            {
+                "text" : "reset",
+                "condition" : "contains"
+            }
+        ]
+    },
+    "HELP" : {
+        "action" : "GET",
+        "score": 1,
+        "response" : [
+            "Here is the help for @SLOT.what",
+            "@SLOT.what help is"
+        ],
+        "failedResponse" : [
+            "No help for @SLOT.what",
+            "@SLOT.what help is missing"
+        ],
+        "grammar" : [
+            {
+                "text" : "help for",
+                "condition" : "contains"
+            },
+            {
+                "text" : "help",
+                "condition" : "contains"
+            }
+        ],
+        "field" : [
+            {
+                "name" : "what",
+                "type" : "text",
+                "required": true,
+                "directive" : [
+                    "What do you want help with",
+                    "What can I help you with"
+                ]
+            }
+        ]
+    },
+    "ABORT" : {
+        "action" : "PUT",
+        "score": 1,
+        "response" : [
+            "What can I do for you",
+            "Starting over, what can I do for you"
+        ],
+        "grammar" : [
+            {
+                "text" : "abort",
+                "condition" : "contains"
+            }
+        ]
+    },
+    "STATEMENT" : {
+        "action" : "PUT",
+        "score": 0,
+        "response" : [
+            "Are you serious",
+            "That was interesting",
+            "I do not understand"
+        ],
+        "grammar" : [
+            {
+                "text" : "ddddd.*",
+                "condition" : "any"
+            }
+        ]
+    },
+    "CLEAR" : {
+        "action" : "PUT",
+        "score": 0,
+        "response" : [
+            "Clearing Screen",
+            "Clearing...",
+            "Cleared it"
+        ],
+        "grammar" : [
+            {
+                "text" : "clear",
+                "condition" : "startswith"
+            }
+        ]
+    },
+    "EMBED" : {
+        "action" : "GET",
+        "score": 1,
+        "response" : [
+            "Loading @SLOT.url into page",
+            "@SLOT.url, loading"
+        ],
+        "failedResponse" : [
+            "Unable to load @SLOT.url",
+            "Loading @SLOT.url is impossible."
+        ],
+        "grammar" : [
+            {
+                "text" : "embed",
+                "condition" : "contains"
+            },
+            {
+                "text" : "embed in",
+                "condition" : "contains"
+            }
+        ],
+        "field" : [
+            {
+                "name" : "url",
+                "type" : "text",
+                "required": true,
+                "directive" : [
+                    "What url do you want to embed",
+                    "What is the url you want to load"
+                ]
+            }
+        ]
+    },
+    "PAGEANALYZEMETRICS" : {
+        "action" : "GET",
+        "score": 1,
+        "response" : [
+            "Analyze @SLOT.test metrics",
+            "@SLOT.test, analyze"
+        ],
+        "failedResponse" : [
+            "Unable to analyze @SLOT.test",
+            "Analyzing @SLOT.test is impossible."
+        ],
+        "grammar" : [
+            {
+                "text" : "page metrics",
+                "condition" : "contains"
+            },
+            {
+                "text" : "page analyze metrics",
+                "condition" : "contains"
+            }
+        ],
+        "field" : [
+            {
+                "name" : "test",
+                "type" : "text",
+                "required": true,
+                "directive" : [
+                    "What test do you want to analyze",
+                    "What is the test you want to analyze"
+                ]
+            }
+        ]
+    },
+    "ANALYZEMETRICS" : {
+        "action" : "GET",
+        "score": 1,
+        "response" : [
+            "Analyze @SLOT.url metrics",
+            "@SLOT.url, analyze"
+        ],
+        "failedResponse" : [
+            "Unable to analyze @SLOT.url",
+            "Analyzing @SLOT.url is impossible."
+        ],
+        "grammar" : [
+            {
+                "text" : "metric",
+                "condition" : "contains"
+            },
+            {
+                "text" : "analyze metric",
+                "condition" : "contains"
+            }
+        ],
+        "field" : [
+            {
+                "name" : "url",
+                "type" : "text",
+                "required": true,
+                "directive" : [
+                    "What url do you want to analyze",
+                    "What is the url you want to analyze"
+                ]
+            }
+        ]
+    },
+    "RESEARCH" : {
+        "action" : "GET",
+        "score": 1,
+        "response" : [
+            "Researching @SLOT.channel, getting information",
+            "@SLOT.channel is being searched, please stand by"
+        ],
+        "failedResponse" : [
+            "Unable to search @SLOT.channel",
+            "Research on @SLOT.channel is impossible."
+        ],
+        "grammar" : [
+            {
+                "text" : "research",
+                "condition" : "contains"
+            },
+            {
+                "text" : "research channel",
+                "condition" : "contains"
+            }
+        ],
+        "field" : [
+            {
+                "name" : "partnumber",
+                "type" : "text",
+                "required": true,
+                "directive" : [
+                    "What part number do you want to work in?",
+                    "Which part number shall we research?"
+                ]
+            },
+			{
+                "name" : "format",
+                "type" : "confirm",
+                "options": [{"name": "view","id": "view"},
+                            {"name": "download","id": "download"}
+                           ],
+                "required": true,
+                "directive" : [
+                    "View or Download the research",
+                    "Do you want to view or download a file for the research"
+                ]
+            }
+        ]
+    },
+    "PARTSEARCH" : {
+        "action" : "GET",
+        "score": 1,
+        "response" : [
+            "Searching @SLOT.part, getting information",
+            "@SLOT.part is being searched, please stand by"
+        ],
+        "failedResponse" : [
+            "Unable to search @SLOT.part",
+            "Research on @SLOT.part is impossible."
+        ],
+        "grammar" : [
+            {
+                "text" : "part",
+                "condition" : "contains"
+            }
+        ],
+        "field" : [
+            {
+                "name" : "part",
+                "type" : "text",
+                "required": true,
+                "directive" : [
+                    "What part do you want to open?",
+                    "Which part shall we search?"
+                ]
+            }/*,
+			{
+                "name" : "format",
+                "type" : "confirm",
+                "options": [{"name": "view","id": "view"},
+                            {"name": "download","id": "download"}
+                           ],
+                "required": true,
+                "directive" : [
+                    "View or Download the research",
+                    "Do you want to view or download a file for the research"
+                ]
+            }*/
+        ]
+    }
+};
+
+const FUNCTIONS = {
+				CURRENTCONTEXT: {},
+				setCurrentContext: function(context){
+					HANDLERS.CURRENTCONTEXT = context;
+				},
+				getCurrentContext:function(){
+					return( HANDLERS.CURRENTCONTEXT );
+				},
+				FUNCTIONS: {},
+				setFunction: function(args){
+					FUNCTIONS[args.which] = args.handler;
+				},
+				getFunction:function(args){
+					return( FUNCTIONS[args.which] );
+				}
+			};
+			
+const HANDLERS = {
+				CURRENTCONTEXT: {},
+				setCurrentContext: function(context){
+					HANDLERS.CURRENTCONTEXT = context;
+				},
+				getCurrentContext:function(){
+					return( HANDLERS.CURRENTCONTEXT );
+				},
+				setHandler: function(args){
+					HANDLERS[args.which] = args.handler;
+				},
+				getHandler:function(args){
+					return( HANDLERS[args.which] );
+				},
+				FUNCTIONS: {},
+				setFunction: function(args){
+					HANDLERS.FUNCTIONS[args.which] = args.handler;
+				},
+				getFunction:function(args){
+					return( HANDLERS.FUNCTIONS[args.which] );
+				}
+			};
+
+			
+FUNCTIONS.setFunction({which: "buildSectionContainer",handler: function(args){
+	let container = WIDGETFACTORY.buildWidget({which:"div",class: "section"});
+	WIDGETFACTORY.addWidgetToContainer({parent: args.parent,child: container,insertBefore:true});
+	
+	let header = WIDGETFACTORY.buildWidget({which:"div",class: "header",innerHTML: args.currentFrame.frameType + ": " + args.currentFrame.response});
+	WIDGETFACTORY.addWidgetToContainer({parent: container,child: header});
+	
+	let closebutton = WIDGETFACTORY.buildWidget({which:"div",class: "headerbutton",innerHTML: "<b>X</b>"});
+	WIDGETFACTORY.addWidgetToContainer({parent: header,child: closebutton});
+	let closeFunc = function(){ this.parent.removeChild(this.container);}
+								
+	WIDGETFACTORY.addHandler({widget: closebutton,handler: [{name: "click",callback: closeFunc.bind({parent: args.parent,container: container})}]})
+	
+	return( container );
+}});
+HANDLERS.setHandler({which: 'HELP',handler: function(args){
+    console.log("callback",args);
+	let container = FUNCTIONS.getFunction({which: "buildSectionContainer"})(args);
+	
+	let callback = function(resp){
+        console.log(resp);
+        
+        for(let p in resp){
+			let option = WIDGETFACTORY.buildWidget({which:"div",innerHTML: p + ': ' + resp[p]});
+			WIDGETFACTORY.addWidgetToContainer({parent: this.parent,child: option});
+			WIDGETFACTORY.addHandler({widget: option,handler: [{name: "click",callback: handleClick.bind({selection: resp[p]})}]});
+		}
+
+        HANDLERS.getCurrentContext().setBusy();
+    }
+    HANDLERS.getCurrentContext().setBusy(true,"GETTINGHELP");
+
+    ZEN.getSummary(callback.bind({args: args,parent: container}));
+}});
+
+HANDLERS.setHandler({which: 'CLEAR',handler: function(args){
+    var cContext = HANDLERS.getCurrentContext();
+    console.log("callback",args);
+	WIDGETFACTORY.clearChildren({widget: cContext.resultPanel});
+	cContext.messageBox.innerHTML = '';
+}});
+
+HANDLERS.setHandler({which: 'CONNECT',handler: function(args){
+    var cContext = HANDLERS.getCurrentContext();
+    console.log("callback",args);
+	let option = FUNCTIONS.getFunction({which: "buildSectionContainer"})(args);
+	WIDGETFACTORY.addHandler({widget: option,handler: [{name: "click",callback: handleClick.bind({selection: args.currentFrame.response})}]});
+	
+	var doLater = function(data){
+			let option = WIDGETFACTORY.buildWidget({which:"div",innerHTML: JSON.stringify(data)});
+		WIDGETFACTORY.addWidgetToContainer({parent: this.args.parent,child: option,insertBefore:true});
+	}
+	var url = "http://localhost:8988/conf/grammar.json";
+	
+	let headers = [{name: "Authorization",value: ""}];//,{name: "Content-Type",value: "application/x-www-form-urlencoded"}];
+	let newCallback = doLater.bind({args: args});
+	WIDGETFACTORY.makeXHRRequest("GET",url,false, newCallback, newCallback,headers);
+}});
+
+HANDLERS.setHandler({which: 'EMBED',handler: function(args){
+    let cContext = HANDLERS.getCurrentContext();
+	let url = args.currentFrame.previousState.url;
+	let container = FUNCTIONS.getFunction({which: "buildSectionContainer"})(args);
+	
+    console.log("callback",args,url);
+	
+	var doLater = function(data){
+			console.log(data);
+			let option = WIDGETFACTORY.buildWidget({which:"div",innerHTML: data});
+			WIDGETFACTORY.addWidgetToContainer({parent: this.container,child: option});
+			/*let parser = new DOMParser();
+			let xmlDoc = parser.parseFromString(data,"text/xml");
+
+			let tags = xmlDoc.getElementsByTagName("*");
+			
+			for(let t in tags){
+				let tElementList = tags[t];
+				console.log(t,tElementList);
+				if( tElementList && tElementList.length > 0 && tElementList[0].childNodes && tElementList[0].childNodes.length > 0 ){
+					tWid = tElementList[0].childNodes[0].nodeValue;
+					let option = WIDGETFACTORY.buildWidget({which:"div",innerHTML: tWid});
+					WIDGETFACTORY.addWidgetToContainer({parent: this.container,child: option});
+				}
+			}*/
+	}
+	
+	let headers = [];
+	let newCallback = doLater.bind({args: args,container: container});
+	WIDGETFACTORY.makeXHRRequest("GET",url,false, newCallback, newCallback,headers,true);
+}});
+
+HANDLERS.setHandler({which: 'ANALYZEMETRICS',handler: function(args){
+    let cContext = HANDLERS.getCurrentContext();
+	let url = args.currentFrame.previousState.url;
+	let container = FUNCTIONS.getFunction({which: "buildSectionContainer"})(args);
+	
+    console.log("callback",args,url);
+
+    function analyzeIt(input,handler,collection,metric){
+        console.log(input);
+        let outputBuffer = '';
+
+        if( input && input.indexOf("{") > -1){
+            let inputObj = JSON.parse(input);
+            console.log(inputObj);
+
+            outputBuffer += "<table border=1><tr><td>collection</td><td>handler</td><td>metric</td><td>value</td></tr>";
+
+            if( !handler ) handler = '^[a-zA-Z0-9._\/]+$';
+            let handlerRegEx = new RegExp(handler);
+            if( !collection ) collection = '^[a-zA-Z0-9._\/]+$';
+            let collectionRegEx = new RegExp(collection);
+            if( !metric ) metric = '^[a-zA-Z0-9._\/]+$';
+            let metricRegEx = new RegExp(metric);
+            
+            let data = inputObj["metrics"];
+            for(let c in data){
+                console.log(c);
+                if( collectionRegEx.test(c) ){
+                    console.log("do collection",c);
+                    let currentHandler = data[c];
+                    for(let h in currentHandler){
+                        console.log(h);
+                        if( handlerRegEx.test(h) ){
+                            console.log("do handler",h);
+                            let currentMetric = currentHandler[h];
+
+                            if( currentMetric["count"] > 0 ){
+                                for(let m in currentMetric){
+                                    console.log(m);
+                                    if( metricRegEx.test(m) ){
+                                        console.log("do metric",m);
+                                        outputBuffer += "<tr><td>" + c + "</td><td>" + h + "</td><td>" + m + "</td><td>" + currentMetric[m] + "</td></tr>";
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        else {
+            outputBuffer += "invalid input";
+        }
+
+        outputBuffer += "</table>";
+
+        return outputBuffer;
+    }
+	
+	var doLater = function(data){
+			console.log(data);
+			let formContainer = WIDGETFACTORY.buildWidget({which:"div",style: "width: 100%;height: 200px;"});
+            WIDGETFACTORY.addWidgetToContainer({parent: this.container,child: formContainer});
+            let modifier = "av" + new Date().getTime();
+            let currentFrame = {};
+            let callback = function(){
+                let modifier = this.modifier;
+                let data = this.data;
+
+                let handler = document.getElementById(modifier + 'handler').value;
+                if( !handler ) handler = '^[a-zA-Z0-9._\/]+$';
+                let collection = document.getElementById(modifier + 'collection').value;
+                if( !collection ) collection = '^[a-zA-Z0-9._\/]+$';
+                let metric = document.getElementById(modifier + 'metric').value;
+                if( !metric ) metric = '^[a-zA-Z0-9._\/]+$';
+                
+                let output = analyzeIt(data,handler,collection,metric);
+
+                if( document.getElementById(modifier + 'output') )
+                    document.getElementById(modifier + 'output').innerHTML = output;
+            }
+
+            let form = WIDGETFACTORY.buildWidget({which:"form"});
+            WIDGETFACTORY.addWidgetToContainer({parent: formContainer,child: form});
+
+            let label = WIDGETFACTORY.buildWidget({which:"label",for:  modifier + 'collection',style:"float: left;width: 25%;margin-top: 6px;",innerHTML: "collection"});
+            WIDGETFACTORY.addWidgetToContainer({parent: form,child: label});
+            let input = WIDGETFACTORY.buildWidget({which:"input",id:  modifier + 'collection',name:  modifier + 'collection',style:"float: left;width: 75%;margin-top: 6px", value:"^[a-zA-Z0-9._\/]+$"});
+            WIDGETFACTORY.addWidgetToContainer({parent: form,child: input});
+            WIDGETFACTORY.addHandler({widget: input,handler: [{name: "onenter",callback: callback.bind({modifier: modifier,data: data})}]});
+
+
+            label = WIDGETFACTORY.buildWidget({which:"label",for:  modifier + 'handler',style:"float: left;width: 25%;margin-top: 6px;",innerHTML: "handler"});
+            WIDGETFACTORY.addWidgetToContainer({parent: form,child: label});
+            input = WIDGETFACTORY.buildWidget({which:"input",id:  modifier + 'handler',name:  modifier + 'handler',style:"float: left;width: 75%;margin-top: 6px", value:"^[a-zA-Z0-9._\/]+$"});
+            WIDGETFACTORY.addWidgetToContainer({parent: form,child: input});
+            WIDGETFACTORY.addHandler({widget: input,handler: [{name: "onenter",callback: callback.bind({modifier: modifier,data: data})}]});
+
+
+            label = WIDGETFACTORY.buildWidget({which:"label",for:  modifier + 'metric',style:"float: left;width: 25%;margin-top: 6px;",innerHTML: "metric"});
+            WIDGETFACTORY.addWidgetToContainer({parent: form,child: label});
+            input = WIDGETFACTORY.buildWidget({which:"input",id:  modifier + 'metric',name:  modifier + 'metric',style:"float: left;width: 75%;margin-top: 6px", value:"^[a-zA-Z0-9._\/]+$"});
+            WIDGETFACTORY.addWidgetToContainer({parent: form,child: input});
+            WIDGETFACTORY.addHandler({widget: input,handler: [{name: "onenter",callback: callback.bind({modifier: modifier,data: data})}]});
+
+            let button = WIDGETFACTORY.buildWidget({which:"div",style:"float: left;width: 25%;margin-top: 6px;",innerHTML: "analyze"});
+            WIDGETFACTORY.addWidgetToContainer({parent: form,child: button});
+            WIDGETFACTORY.addHandler({widget: button,handler: [{name: "click",callback: callback.bind({modifier: modifier,data: data})}]});
+            
+            let output = WIDGETFACTORY.buildWidget({which:"div",id:  modifier + 'output',style:"float: left;width: 100%;margin-top: 6px;",innerHTML: "..."});
+            WIDGETFACTORY.addWidgetToContainer({parent: formContainer,child: output});
+	}
+	
+	let headers = [];
+	let newCallback = doLater.bind({args: args,container: container});
+	WIDGETFACTORY.makeXHRRequest("GET",url,false, newCallback, newCallback,headers,true);
+}});
+
+HANDLERS.setHandler({which: 'PAGEANALYZEMETRICS',handler: function(args){
+    let cContext = HANDLERS.getCurrentContext();
+    let test = args.currentFrame.previousState.test;
+	let url = "http://localhost:8983/solr/validate?fq=testname:(" + test + ")&fq=contentype=METRICS&wt=json&start=0&rows=1&q=*:*";
+	let container = FUNCTIONS.getFunction({which: "buildSectionContainer"})(args);
+	
+    console.log("callback",args,url);
+
+    function analyzeIt(input,handler,collection,metric){
+        console.log(input);
+        let outputBuffer = '';
+
+        if( input && input.indexOf("{") > -1){
+            let inputObj = JSON.parse(input);
+            console.log(inputObj);
+
+
+
+            outputBuffer += "<table border=1><tr><td>collection</td><td>handler</td><td>metric</td><td>value</td></tr>";
+
+            if( !handler ) handler = '^[a-zA-Z0-9._\/]+$';
+            let handlerRegEx = new RegExp(handler);
+            if( !collection ) collection = '^[a-zA-Z0-9._\/]+$';
+            let collectionRegEx = new RegExp(collection);
+            if( !metric ) metric = '^[a-zA-Z0-9._\/]+$';
+            let metricRegEx = new RegExp(metric);
+            
+            let data = inputObj["metrics"];
+            for(let c in data){
+                console.log(c);
+                if( collectionRegEx.test(c) ){
+                    console.log("do collection",c);
+                    let currentHandler = data[c];
+                    for(let h in currentHandler){
+                        console.log(h);
+                        if( handlerRegEx.test(h) ){
+                            console.log("do handler",h);
+                            let currentMetric = currentHandler[h];
+
+                            if( currentMetric["count"] > 0 ){
+                                for(let m in currentMetric){
+                                    console.log(m);
+                                    if( metricRegEx.test(m) ){
+                                        console.log("do metric",m);
+                                        outputBuffer += "<tr><td>" + c + "</td><td>" + h + "</td><td>" + m + "</td><td>" + currentMetric[m] + "</td></tr>";
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        else {
+            outputBuffer += "invalid input";
+        }
+
+        outputBuffer += "</table>";
+
+        return outputBuffer;
+    }
+	
+	var doLater = function(pageData){
+			//console.log(pageData);
+			let formContainer = WIDGETFACTORY.buildWidget({which:"div",style: "width: 100%;height: 200px;"});
+            WIDGETFACTORY.addWidgetToContainer({parent: this.container,child: formContainer});
+
+            let jsonData = JSON.parse(pageData);
+            let responseData = jsonData.response;
+
+            let modifier = "av" + new Date().getTime();
+            let currentFrame = {};
+
+            let pageState = {start: 0,totalCount: responseData.numFound};
+            let data = responseData.docs && responseData.docs.length > pageState.start ? responseData.docs[pageState.start] : {};
+
+            let pageCallback = function(){
+                let action = this.action;
+                let state = this.state;
+                let modifier = this.modifier;
+                let data = this.data;
+
+                if( action == 'next' ){
+                    if( state.start < start.totalCount )
+                        start.start++;
+                }
+                else {
+                    if( state.start > 0 )
+                        start.start--;
+                }
+
+                callback.bind({modifier: modifier,data: data})();
+            }
+
+            let callback = function(){
+                let modifier = this.modifier;
+                let data = this.data;
+
+                let handler = document.getElementById(modifier + 'handler').value;
+                if( !handler ) handler = '^[a-zA-Z0-9._\/]+$';
+                let collection = document.getElementById(modifier + 'collection').value;
+                if( !collection ) collection = '^[a-zA-Z0-9._\/]+$';
+                let metric = document.getElementById(modifier + 'metric').value;
+                if( !metric ) metric = '^[a-zA-Z0-9._\/]+$';
+                
+                let output = analyzeIt(data,handler,collection,metric);
+
+                if( document.getElementById(modifier + 'output') )
+                    document.getElementById(modifier + 'output').innerHTML = output;
+            }
+
+            let form = WIDGETFACTORY.buildWidget({which:"form"});
+            WIDGETFACTORY.addWidgetToContainer({parent: formContainer,child: form});
+
+            let label = WIDGETFACTORY.buildWidget({which:"label",for:  modifier + 'collection',style:"float: left;width: 25%;margin-top: 6px;",innerHTML: "collection"});
+            WIDGETFACTORY.addWidgetToContainer({parent: form,child: label});
+            let input = WIDGETFACTORY.buildWidget({which:"input",id:  modifier + 'collection',name:  modifier + 'collection',style:"float: left;width: 75%;margin-top: 6px", value:"^[a-zA-Z0-9._\/]+$"});
+            WIDGETFACTORY.addWidgetToContainer({parent: form,child: input});
+            WIDGETFACTORY.addHandler({widget: input,handler: [{name: "onenter",callback: callback.bind({modifier: modifier,data: data})}]});
+
+
+            label = WIDGETFACTORY.buildWidget({which:"label",for:  modifier + 'handler',style:"float: left;width: 25%;margin-top: 6px;",innerHTML: "handler"});
+            WIDGETFACTORY.addWidgetToContainer({parent: form,child: label});
+            input = WIDGETFACTORY.buildWidget({which:"input",id:  modifier + 'handler',name:  modifier + 'handler',style:"float: left;width: 75%;margin-top: 6px", value:"^[a-zA-Z0-9._\/]+$"});
+            WIDGETFACTORY.addWidgetToContainer({parent: form,child: input});
+            WIDGETFACTORY.addHandler({widget: input,handler: [{name: "onenter",callback: callback.bind({modifier: modifier,data: data})}]});
+
+
+            label = WIDGETFACTORY.buildWidget({which:"label",for:  modifier + 'metric',style:"float: left;width: 25%;margin-top: 6px;",innerHTML: "metric"});
+            WIDGETFACTORY.addWidgetToContainer({parent: form,child: label});
+            input = WIDGETFACTORY.buildWidget({which:"input",id:  modifier + 'metric',name:  modifier + 'metric',style:"float: left;width: 75%;margin-top: 6px", value:"^[a-zA-Z0-9._\/]+$"});
+            WIDGETFACTORY.addWidgetToContainer({parent: form,child: input});
+            WIDGETFACTORY.addHandler({widget: input,handler: [{name: "onenter",callback: callback.bind({modifier: modifier,data: data})}]});
+
+            let button = WIDGETFACTORY.buildWidget({which:"div",style:"float: left;width: 25%;margin-top: 6px;",innerHTML: "analyze"});
+            WIDGETFACTORY.addWidgetToContainer({parent: form,child: button});
+            WIDGETFACTORY.addHandler({widget: button,handler: [{name: "click",callback: callback.bind({modifier: modifier,data: data})}]});
+
+            button = WIDGETFACTORY.buildWidget({which:"div",style:"float: left;width: 25%;margin-top: 6px;",innerHTML: "previous"});
+            WIDGETFACTORY.addWidgetToContainer({parent: form,child: button});
+            WIDGETFACTORY.addHandler({widget: button,handler: [{name: "click",callback: pageCallback.bind({modifier: modifier,action: 'previous',state: pageState,data: responseData})}]});
+
+            button = WIDGETFACTORY.buildWidget({which:"div",style:"float: left;width: 25%;margin-top: 6px;",innerHTML: "next"});
+            WIDGETFACTORY.addWidgetToContainer({parent: form,child: button});
+            WIDGETFACTORY.addHandler({widget: button,handler: [{name: "click",callback: pageCallback.bind({modifier: modifier,action: 'next',state: pageState,data: responseData})}]});
+            
+            let output = WIDGETFACTORY.buildWidget({which:"div",id:  modifier + 'output',style:"float: left;width: 100%;margin-top: 6px;",innerHTML: "..."});
+            WIDGETFACTORY.addWidgetToContainer({parent: formContainer,child: output});
+	}
+	
+	let headers = [];
+	let newCallback = doLater.bind({args: args,container: container});
+	WIDGETFACTORY.makeXHRRequest("GET",url,false, newCallback, newCallback,headers,true);
+}});
+
+HANDLERS.setHandler({which: 'RESEARCH',handler: function(args){
+    console.log("callback",args);
+	let container = FUNCTIONS.getFunction({which: "buildSectionContainer"})(args);
+	let input = args.currentFrame.previousState.part;
+	let facetClick = function(){
+		console.log("click",this);
+		WIDGETFACTORY.clearChildren({widget: this.container});
+		
+		let facetList = this.facetList;
+		
+		if( !facetList ) {
+			facetList = [{field: this.field,value: this.value}];
+		}
+		else {
+			let newList = [];
+			let found = false;
+			for(let i = facetList.length-1;i >= 0;i--){
+				if( facetList[i].field == this.field ){
+					found = true;
+				}
+				else {
+					newList.push(facetList[i]);
+				}
+			}
+			
+			if( !found ){
+				newList.push({field: this.field,value: this.value});
+			}
+			
+			facetList = newList;
+		}
+		
+		doQuery(this.args,this.container,this.input,facetList);
+	}
+	let callback = function(resp){
+        console.log(resp);
+		
+		let title = "Over ";
+		if( resp.response ){
+			title += resp.response.numFound;
+		}
+		else {
+			title += '0';
+		}
+		title +=" documents";
+		
+		let titleWidget = WIDGETFACTORY.buildWidget({which:"div",innerHTML: "Query Result"});
+		WIDGETFACTORY.addWidgetToContainer({parent: this.parent,child: titleWidget});
+		
+		let resultPanelA = WIDGETFACTORY.buildWidget({which:"div",class: "resultleftside"});
+		WIDGETFACTORY.addWidgetToContainer({parent: this.parent,child: resultPanelA});	
+		
+		let resultPanelB = WIDGETFACTORY.buildWidget({which:"div",class: "resultrightside"});
+		WIDGETFACTORY.addWidgetToContainer({parent: this.parent,child: resultPanelB});
+		
+		if( resp.response ){
+			let docs = resp.response.docs;
+			
+			if( docs && docs.length > 0 ){
+				let docWidget = WIDGETFACTORY.buildWidget({which:"div",innerHTML: docs.length + (docs.length > 1 ? " parts found" : " part found")});
+				
+				for(let d in docs){
+					let entryWidget = WIDGETFACTORY.buildWidget({which:"ul",innerHTML: "Part " + d});
+					for(let a in docs[d]){
+						if( (a.indexOf("titleEN_t") > -1 || a.indexOf("descriptionEN_t") > -1 || a.indexOf("score") > -1) ){
+							let tVal = typeof(docs[d][a]) == 'object' ? docs[d][a][0] : docs[d][a];
+							let attributeWidget = WIDGETFACTORY.buildWidget({which:"li",innerHTML: a + ": " + tVal});
+							WIDGETFACTORY.addWidgetToContainer({parent: entryWidget,child: attributeWidget});
+						}
+					}
+					WIDGETFACTORY.addWidgetToContainer({parent: docWidget,child: entryWidget});
+				}
+				
+				WIDGETFACTORY.addWidgetToContainer({parent: resultPanelB,child: docWidget});
+			}
+			else {
+				let docWidget = WIDGETFACTORY.buildWidget({which:"div",innerHTML: "no parts found"});
+				WIDGETFACTORY.addWidgetToContainer({parent: resultPanelB,child: docWidget});
+				WIDGETFACTORY.clearChildren({widget: this.parent});
+		
+				doQuery(this.args,this.parent,this.input,[]);
+			}
+		}
+		
+		/*if( resp.spellcheck ){
+			if( resp.spellcheck.suggestions && resp.spellcheck.suggestions.length > 0 ){
+				let spellWidget = WIDGETFACTORY.buildWidget({which:"div",innerHTML: "Spellcheck"});
+				
+				let suggestionListWidget = WIDGETFACTORY.buildWidget({which:"div",innerHTML: "Spell"});
+				
+				for(let s = 0;s < resp.spellcheck.suggestions.length;s+=2){
+					let suggestionWidget = WIDGETFACTORY.buildWidget({which:"ul",innerHTML: resp.spellcheck.suggestions[s]});
+					//console.log(resp.spellcheck.suggestions[s]);
+					for(let i in resp.spellcheck.suggestions[s+1].suggestion){
+						let aWidget = WIDGETFACTORY.buildWidget({which:"li",innerHTML: resp.spellcheck.suggestions[s+1].suggestion[i]});
+						WIDGETFACTORY.addWidgetToContainer({parent: suggestionWidget,child: aWidget});
+					}
+					WIDGETFACTORY.addWidgetToContainer({parent: suggestionListWidget,child: suggestionWidget});
+				}
+				WIDGETFACTORY.addWidgetToContainer({parent: spellWidget,child: suggestionListWidget});
+				WIDGETFACTORY.addWidgetToContainer({parent: this.parent,child: spellWidget});
+			}
+			else {
+				let spellWidget = WIDGETFACTORY.buildWidget({which:"div",innerHTML: "No Spellcheck"});
+				WIDGETFACTORY.addWidgetToContainer({parent: this.parent,child: spellWidget});
+			}
+
+			if( resp.spellcheck.collations && resp.spellcheck.collations.length > 0 ){
+				let spellWidget = WIDGETFACTORY.buildWidget({which:"div",innerHTML: "Collations"});
+				
+				let suggestionListWidget = WIDGETFACTORY.buildWidget({which:"ul",innerHTML: "Collations"});
+				
+				for(let s in resp.spellcheck.collations){
+					let suggestionWidget = WIDGETFACTORY.buildWidget({which:"li",innerHTML: resp.spellcheck.collations[s]});
+					WIDGETFACTORY.addWidgetToContainer({parent: suggestionListWidget,child: suggestionWidget});
+				}
+				WIDGETFACTORY.addWidgetToContainer({parent: this.parent,child: suggestionListWidget});
+			}
+			else {
+				let spellWidget = WIDGETFACTORY.buildWidget({which:"div",innerHTML: "No Collations"});
+				WIDGETFACTORY.addWidgetToContainer({parent: this.parent,child: spellWidget});
+			}			
+		}*/
+		
+		/*if( resp.suggest ){
+			if( resp.suggest.default ){
+				let suggestWidget = WIDGETFACTORY.buildWidget({which:"div",innerHTML: "Suggest"});
+								
+				for(let s in resp.suggest.default){
+					if( resp.suggest.default[s].numFound > 0 ){
+						let aWidget = WIDGETFACTORY.buildWidget({which:"ul",innerHTML: s});
+						for(let e in resp.suggest.default[s].suggestions){
+							let saWidget = WIDGETFACTORY.buildWidget({which:"li",innerHTML: resp.suggest.default[s].suggestions[e].term});
+							WIDGETFACTORY.addWidgetToContainer({parent: aWidget,child: saWidget});
+						}
+						WIDGETFACTORY.addWidgetToContainer({parent: suggestWidget,child: aWidget});
+					}
+				}
+								
+				WIDGETFACTORY.addWidgetToContainer({parent: this.parent,child: suggestWidget});
+			}
+			else {
+				let suggestWidget = WIDGETFACTORY.buildWidget({which:"div",innerHTML: "No Suggest"});
+				WIDGETFACTORY.addWidgetToContainer({parent: this.parent,child: suggestWidget});
+			}
+		}*/
+		
+		if( resp.facet_counts ){
+			let ff = resp.facet_counts.facet_fields;
+			
+			let facetListWidget = WIDGETFACTORY.buildWidget({which:"div",innerHTML: "Facets"});
+			
+			for(let p in ff){
+				if( p.indexOf("defAtt") > -1 || p.indexOf("productEN_ss") > -1 ){
+					let facetWidget = WIDGETFACTORY.buildWidget({which:"ul",innerHTML: "<b>" + p + "</b>"});
+					WIDGETFACTORY.addWidgetToContainer({parent: facetListWidget,child: facetWidget});
+					
+					let fData = ff[p];
+					for(let v = 0;v < ff[p].length;v+=2){
+						let valueWidget = WIDGETFACTORY.buildWidget({which:"div",innerHTML: fData[v] + ": " + fData[v+1]});
+						WIDGETFACTORY.addWidgetToContainer({parent: facetWidget,child: valueWidget});
+						
+						WIDGETFACTORY.addHandler({widget: valueWidget,handler: [{name: "click",callback: facetClick.bind({facetList: this.facetList,input: this.input,field: p,value: fData[v],parent: valueWidget,container: this.parent,args: this.args})}]})
+	
+					}
+				}
+			}
+			
+			WIDGETFACTORY.addWidgetToContainer({parent: resultPanelA,child: facetListWidget});
+		}
+
+        HANDLERS.getCurrentContext().setBusy();
+    }
+	
+	let doQuery = function(args,container,input,facetList){
+		HANDLERS.getCurrentContext().setBusy(true,"PARTSEARCH");	
+		//let headers = [];
+		//let solrHost = "http://localhost:8983/solr";
+		//let solrPath = "/eact/select?df=refinedtext&facet.field=exactstring&facet.mincount=1&facet=on&fl=score,*&indent=on&q=(%s)&rows=10&spellcheck.query=(%s)&spellcheck=true&wt=json&spellcheck.dictionary=default&spellcheck.collate=true&suggest=true&suggest.build=true&suggest.dictionary=default&wt=json&suggest.query=(%s)";
+		let headers = [{name: "Authorization",value: 'Basic YWRtaW46UGFya2VyMTIz'}];
+		let solrHost = "http://cor089xw83.us.parker.corp:8764";
+		let solrPath = "/api/apollo/query-pipelines/ParkerDotComMain-EN2/collections/ParkerDotComMain/select?tab=products&wt=json&rows=10&timeAllowed=30000&indent=on&facet=true&rows=0&facet.mincount=1&facet.field=defAtt_Material_ss&facet.field=defAtt_Shape_ss&facet.field=defAtt_Connection_Type_ss&facet.field=productEN_ss&q=%s";
+		if( facetList ){
+			for(var f in facetList){
+				solrPath += "&fq=" + facetList[f].field + ":(" + facetList[f].value + ")";
+			}
+		}
+		let newCallback = callback.bind({args: args,parent: container, input: input,facetList: facetList});
+		let url = solrHost + solrPath.replace("%s",input).replace("%",input).replace("%s",input).replace(" ","%2b");
+		WIDGETFACTORY.makeXHRRequest("GET",url,false, newCallback, newCallback,headers);
+	}
+	
+	doQuery(args,container,input);
+}});
+
+HANDLERS.setHandler({which: 'PARTSEARCH',handler: function(args){
+    console.log("callback",args);
+	//let container = FUNCTIONS.getFunction({which: "buildSectionContainer"})(args);
+	let input = args.currentFrame.previousState.part;
+
+	let facetClick = function(){
+		console.log("click",this);
+		WIDGETFACTORY.clearChildren({widget: args.parent});
+		
+		let facetList = this.facetList;
+		
+		if( !facetList ) {
+			facetList = [{field: this.field,value: this.value}];
+		}
+		else {
+			let newList = [];
+			let found = false;
+			for(let i = facetList.length-1;i >= 0;i--){
+				if( facetList[i].field == this.field ){
+					found = true;
+				}
+				else {
+					newList.push(facetList[i]);
+				}
+			}
+			
+			if( !found ){
+				newList.push({field: this.field,value: this.value});
+			}
+			
+			facetList = newList;
+		}
+		
+		doQuery(args,this.input,facetList);
+	}
+	let callback = function(resp){
+        console.log(resp);
+		
+		let container = FUNCTIONS.getFunction({which: "buildSectionContainer"})(this.args);
+	
+		let titleWidget = WIDGETFACTORY.buildWidget({which:"div",innerHTML: "Query: "});
+		WIDGETFACTORY.addWidgetToContainer({parent: container,child: titleWidget});
+		
+		let linkWidget = WIDGETFACTORY.buildWidget({which:"a",target: "_blank",href: this.queryurl.replace(" ","+"),innerHTML: this.queryurl});
+		WIDGETFACTORY.addWidgetToContainer({parent: titleWidget,child: linkWidget});
+		
+		let resultPanelA = WIDGETFACTORY.buildWidget({which:"div",class: "resultleftside"});
+		WIDGETFACTORY.addWidgetToContainer({parent: container,child: resultPanelA});	
+		
+		let resultPanelB = WIDGETFACTORY.buildWidget({which:"div",class: "resultrightside"});
+		WIDGETFACTORY.addWidgetToContainer({parent: container,child: resultPanelB});
+		
+		if( resp.response ){
+			let docs = resp.response.docs;
+			
+			if( docs && docs.length > 0 ){
+				let docWidget = WIDGETFACTORY.buildWidget({which:"div",innerHTML: resp.response.numFound + (resp.response.numFound > 1 ? " parts found" : " part found") + " for " + this.input});
+				
+				for(let d in docs){
+					let entryWidget = WIDGETFACTORY.buildWidget({which:"ul",innerHTML: "Part " + d});
+					for(let a in docs[d]){
+						if( (a.indexOf("parkerPartNumber_s") > -1 || a.indexOf("titleEN_t") > -1 || a.indexOf("descriptionEN_t") > -1 || a.indexOf("score") > -1) ){
+							let tVal = typeof(docs[d][a]) == 'object' ? docs[d][a][0] : docs[d][a];
+							let attributeWidget = WIDGETFACTORY.buildWidget({which:"li",innerHTML: a + ": " + tVal});
+							WIDGETFACTORY.addWidgetToContainer({parent: entryWidget,child: attributeWidget});
+						}
+					}
+					WIDGETFACTORY.addWidgetToContainer({parent: docWidget,child: entryWidget});
+				}
+				
+				WIDGETFACTORY.addWidgetToContainer({parent: resultPanelB,child: docWidget});
+			}
+			else {
+				let docWidget = WIDGETFACTORY.buildWidget({which:"div",innerHTML: "no parts found"});
+				WIDGETFACTORY.addWidgetToContainer({parent: resultPanelB,child: docWidget});
+				WIDGETFACTORY.clearChildren({widget: this.args.parent});
+		
+				doQuery(this.args,this.input,[]);
+			}
+		}
+		
+		if( resp.facet_counts ){
+			let ff = resp.facet_counts.facet_fields;
+			
+			let facetListWidget = WIDGETFACTORY.buildWidget({which:"div",innerHTML: "Facets"});
+			
+			for(let p in ff){
+				if( p.indexOf("defAtt") > -1 || p.indexOf("productEN_ss") > -1){
+					let facetWidget = WIDGETFACTORY.buildWidget({which:"ul",innerHTML: "<b>" + p + "</b>"});
+					WIDGETFACTORY.addWidgetToContainer({parent: facetListWidget,child: facetWidget});
+					
+					let fData = ff[p];
+					for(let v = 0;v < ff[p].length;v+=2){
+						let valueWidget = WIDGETFACTORY.buildWidget({which:"div",innerHTML: fData[v] + ": " + fData[v+1]});
+						WIDGETFACTORY.addWidgetToContainer({parent: facetWidget,child: valueWidget});
+						WIDGETFACTORY.setStyle({widget: valueWidget,style:{"text-decoration": "underline",color: "blue"}});
+						
+						WIDGETFACTORY.addHandler({widget: valueWidget,handler: [{name: "click",callback: facetClick.bind({facetList: this.facetList,input: this.input,field: p,value: fData[v],parent: valueWidget,container: this.parent,args: this.args})}]})
+	
+					}
+				}
+			}
+			
+			WIDGETFACTORY.addWidgetToContainer({parent: resultPanelA,child: facetListWidget});
+		}
+
+        HANDLERS.getCurrentContext().setBusy();
+    }
+	
+	let doQuery = function(args,input,stateFrame){
+		HANDLERS.getCurrentContext().setBusy(true,"PARTSEARCH");	
+		let headers = [{name: "Authorization",value: 'Basic YWRtaW46UGFya2VyMTIz'}];
+		let solrHost = "";
+		let solrPath = "/restservice?contenttype=ZEN&q=%s";
+
+		let newCallback = callback.bind({args, stateFrame,input,queryurl: solrHost + solrPath});
+		let url = solrHost + solrPath.replace("%s",input).replace(" ","+");
+		WIDGETFACTORY.makeXHRRequest("GET",url,false, newCallback, newCallback,headers);
+	}
+	
+	doQuery(args,input);
+}});
+</script>
+</head>
+<body onload="init()">
+ZEN....
+</body>
+</html>
