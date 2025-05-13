@@ -789,7 +789,7 @@ const ZEN = {
 					if( result.length == 0 ){
 						var doFinally = function(data){
 						   if( data.items && data.items.length > 0 ){
-							result.push({"action": "GET","response": data.items[0].body}); 
+								result.push({"action": "GET","response": JSON.stringify(data)}); 
 							}
 							else {
 								result.push({"action": "PUT","response": "NOIDEA"}); 
@@ -799,7 +799,7 @@ const ZEN = {
 						}
 						
 						
-						var url = "http://localhost:8080/restservice?contenttype=ZEN&question=" + ZEN.replaceAll(args.input," ","%20");
+						var url = "http://localhost:8080/restservice?contenttype=ZEN&input=" + ZEN.replaceAll(args.input," ","%20");
 					
 						let headers = [{name: "Authorization",value: ""}];//,{name: "Content-Type",value: "application/x-www-form-urlencoded"}];
 						let newCallback = doFinally.bind({});

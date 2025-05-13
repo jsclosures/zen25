@@ -42,7 +42,7 @@ const mimeType = {
 let PORT = 8080;
 let SOLRHOST = "localhost";
 let SOLRPORT = 8983;
-let SOLRCOLLECTION = "validate";
+let SOLRCOLLECTION = "tagger";
 let DOCUMENTROOT = "./";
 let DEBUG = 0;
 let AUTHKEY = "";
@@ -539,7 +539,7 @@ function getRESTData(args) {
 				else if (args.type == 'query') {
 					let docData = { items: [] };
 					let docs = data.response.docs;
-					docData._totalItems = data.response.numFound;
+					docData.totalItems = data.response.numFound;
 					for (let i in docs) {
 						docData.items.push({ id: args.entry.label, value: docs[i][args.entry.field] });
 					}
@@ -553,7 +553,7 @@ function getRESTData(args) {
 						let docs = data.response.docs;
 
 						docData.items = docs;
-						docData._totalItems = data.response.numFound;
+						docData.totalItems = data.response.numFound;
 					}
 					args.callback(docData);
 				}
@@ -567,11 +567,18 @@ function getRESTData(args) {
 	if (AUTHKEY)
 		config.headers = { "Authorization": "Basic " + AUTHKEY };
 
-	let t = (HTTPSSOLR ? https : http).get(config, callback.bind({ args: args }));
+	if( args.payload ){
+		config.method = "POST";
+	}
+
+	let t = (HTTPSSOLR ? https : http).request(config, callback.bind({ args: args }));
 	t.on('error', function (e) {
 		if (DEBUG > 1) console.log("Got error: " + e.message);
 		args.callback({ error: e.message });
 	});
+	if( args.payload ){
+		t.write(args.payload);
+	}
 	t.end();
 }
 
