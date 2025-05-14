@@ -1964,9 +1964,9 @@ HANDLERS.setHandler({which: 'RESEARCH',handler: function(args){
 		//let headers = [];
 		//let solrHost = "http://localhost:8983/solr";
 		//let solrPath = "/eact/select?df=refinedtext&facet.field=exactstring&facet.mincount=1&facet=on&fl=score,*&indent=on&q=(%s)&rows=10&spellcheck.query=(%s)&spellcheck=true&wt=json&spellcheck.dictionary=default&spellcheck.collate=true&suggest=true&suggest.build=true&suggest.dictionary=default&wt=json&suggest.query=(%s)";
-		let headers = [{name: "Authorization",value: 'Basic YWRtaW46UGFya2VyMTIz'}];
-		let solrHost = "http://cor089xw83.us.parker.corp:8764";
-		let solrPath = "/api/apollo/query-pipelines/ParkerDotComMain-EN2/collections/ParkerDotComMain/select?tab=products&wt=json&rows=10&timeAllowed=30000&indent=on&facet=true&rows=0&facet.mincount=1&facet.field=defAtt_Material_ss&facet.field=defAtt_Shape_ss&facet.field=defAtt_Connection_Type_ss&facet.field=productEN_ss&q=%s";
+		let headers = [{name: "Authorization",value: 'Basic'}];
+		let solrHost = "http://zzzz";
+		let solrPath = "/";
 		if( facetList ){
 			for(var f in facetList){
 				solrPath += "&fq=" + facetList[f].field + ":(" + facetList[f].value + ")";
