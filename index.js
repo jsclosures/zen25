@@ -41,16 +41,16 @@ const mimeType = {
 //Lets define a port we want to listen to
 let PORT = 8080;
 let SOLRHOST = "localhost";
-let SOLRPORT = 8983;
+let SOLRPORT = 443;
 let SOLRCOLLECTION = "tagger";
 let DOCUMENTROOT = "./";
 let DEBUG = 0;
 let AUTHKEY = "";
 let AUTHMODE = false;
-let HTTPSSOLR = false;
+let HTTPSSOLR = true;
 let SOLRPREFIX = "/solr/";
 let IGNORESSLCHECK = true;
-let IGNORELOGIN = false;
+let IGNORELOGIN = true;
 let USERSPECIFIC = true;
 
 let commandLine = {};
@@ -125,6 +125,7 @@ const CONTEXT = {
 	HTTPSSOLR: HTTPSSOLR,
 	SOLRPREFIX: SOLRPREFIX,
 	IGNORESSLCHECK: IGNORESSLCHECK,
+	IGNORELOGIN: IGNORELOGIN,
 	SOLRHOST: SOLRHOST,
 	SOLRPORT: SOLRPORT,
 	DOCUMENTROOT: DOCUMENTROOT,
@@ -174,8 +175,11 @@ function parseCookies(request) {
 function checkHasAuth(request){
 	let result = "";
 	let cookieObj = parseCookies(request);
-	if ( cookieObj.zen || CONTEXT.IGNORELOGIN ) {
+	if ( cookieObj.zen ) {
 		result = cookieObj.zen;
+	}
+	else if( CONTEXT.IGNORELOGIN ){
+		result= "zen";
 	}
 
 	return( result );
@@ -546,6 +550,9 @@ function getRESTData(args) {
 					docData._totalItems = docs.length;
 					args.callback(docData);
 				}
+				else if (args.type == 'raw') {
+					args.callback(data);
+				}
 				else {
 					let docData = { items: [] };
 
@@ -589,137 +596,6 @@ function replaceAll(str, find) {
 
 	return (str.replace(re, ''));
 }
-
-function loadAsset(assetName, callback, assetType) {
-
-	let solrHost = SOLRHOST;
-	let solrPort = SOLRPORT;
-	let solrPath = SOLRPREFIX + SOLRCOLLECTION + "/select?wt=json&rows=1&indent=on&q=*:*&fq=contenttype:ASSET&fq=assetname:" + assetName;
-
-	if (assetType) {
-		solrPath += "&fq=assettype:" + assetType;
-	}
-
-	let queryCallback = function (res) {
-		let str = "";
-
-		res.on('data', function (chunk) {
-			str += chunk;
-
-		});
-
-		res.on('end', function () {
-			//console.log("testlookup",str);
-
-			let resp = JSON.parse(str);
-
-			let result = {};
-
-			if (resp.response && resp.response.docs) {
-				if (resp.response.docs.length > 0) {
-					result = resp.response.docs[0];
-				}
-			}
-
-			callback(result);
-		});
-	}
-
-
-	let config = { host: solrHost, port: solrPort, path: solrPath };
-	if (AUTHKEY)
-		config.headers = { "Authorization": "Basic " + AUTHKEY };
-	let t = (HTTPSSOLR ? https : http).get(config, queryCallback);
-	t.on('error', function (e) {
-		if (DEBUG > 1) console.log("Got error: " + e.message);
-		callback({ error: e.message });
-	});
-	t.end();
-}
-
-CONTEXT.lib.loadAsset = loadAsset;
-
-function loadTest(testName, callback, testType,encoded) {
-
-	let solrHost = SOLRHOST;
-	let solrPort = SOLRPORT;
-	let solrPath = SOLRPREFIX + SOLRCOLLECTION + "/select?wt=json&rows=1&indent=on&q=*:*&fq=contenttype:TEST&fq=testname:" + testName;
-
-	///if( testType ){
-	//	solrPath += "&fq=testtype:" + testType;
-	//}
-
-	let queryCallback = function (res) {
-		let str = "";
-
-		res.on('data', function (chunk) {
-			str += chunk;
-
-		});
-
-		res.on('end', function () {
-			//console.log("testlookup",str);
-
-			let resp = JSON.parse(str);
-
-			let result = {};
-
-			if (resp.response && resp.response.docs) {
-				if (resp.response.docs.length > 0) {
-					result = resp.response.docs[0];
-				}
-			}
-			//console.log("test",result);
-
-			if (result[testType] ) {
-				let script = Buffer.from(result[testType], 'base64').toString("ascii");
-
-				if (script.startsWith("ASSET:")) {
-					let assetName = script.substring("ASSET:".length);
-					if (DEBUG > 0) console.log("loading asset", assetName);
-					let cb = function (asset) {
-						if (asset && asset["assetscript"]) {
-							let assetRaw = asset["assetscript"];
-							if( !this.encoded )
-								script = Buffer.from(assetRaw, 'base64').toString("ascii");
-							else
-								script = assetRaw;
-							this.result[this.testType] = script;
-						}
-						this.callback(this.result);
-
-					}.bind({ assetname: assetName, testType: testType, result: result, callback: callback ,encoded});
-
-					loadAsset(assetName, cb, "script");
-
-				}
-				else {
-					if( !encoded )
-						result[testType] = script;
-
-					callback(result);
-				}
-			}
-			else
-				callback(result);
-		});
-
-
-	}
-
-
-	let config = { host: solrHost, port: solrPort, path: solrPath };
-	if (AUTHKEY)
-		config.headers = { "Authorization": "Basic " + AUTHKEY };
-	let t = (HTTPSSOLR ? https : http).get(config, queryCallback);
-	t.on('error', function (e) {
-		if (DEBUG > 1) console.log("Got error: " + e.message);
-		callback({ error: e.message });
-	});
-	t.end();
-}
-
-CONTEXT.lib.loadTest = loadTest;
 
 
 function parseArgs(line) {

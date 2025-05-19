@@ -103,7 +103,7 @@ function init(){
 	
 	let searchBox = WIDGETFACTORY.buildWidget({which:"input",type: "text"});
 	WIDGETFACTORY.addWidgetToContainer({parent: inputPanel,child: searchBox});
-	WIDGETFACTORY.addHandler({widget: searchBox,handler: [{name: "onenter",callback: handleInput}]});
+	WIDGETFACTORY.addHandler({widget: searchBox,handler: [{name: "timer",callback: handleInput}]});
 	
 	let messageBox = WIDGETFACTORY.buildWidget({which:"div",type: "text",class: "message"});
 	WIDGETFACTORY.addWidgetToContainer({parent: inputPanel,child: messageBox});
@@ -210,7 +210,7 @@ function handleInput(event){
 		}
 	}
 	
-	event.srcElement.value = '';
+	//steve event.srcElement.value = '';
 	if( !currentState ){
 		currentState = {input: input,callback: callback};
 	}
@@ -292,6 +292,40 @@ const WIDGETFACTORY = {
 						result.eventListenerList.push({type: args.handler[h].name,callback: callback});
 						
 						result.addEventListener("keyup",callback);
+					}
+					else if( args.handler[h].name == 'timer' ){
+						if( !result.eventListenerList ){
+							result.eventListenerList = [];
+							let wrapper = function(event) {
+								if( event.preventDefault )
+									event.preventDefault();
+								this.widget.lastEvent = event;
+
+								if( !this.widget.timerId ){
+									let timerCallback = function(timerCb){
+										if( !this.widget.previousInput ){
+											this.widget.previousInput = this.widget.value;
+											this.callback(this.widget.lastEvent);
+										}
+										else if( this.widget.previousInput !== this.widget.value ){
+											this.widget.previousInput = this.widget.value;
+											this.callback(this.widget.lastEvent);
+										}
+
+										this.widget.timerId = setTimeout(timerCb,300,timerCb);
+									}.bind({widget: result,callback: this.callback});
+
+									this.widget.timerId = setTimeout(timerCallback,300,timerCallback);
+								}
+									
+							}
+
+							let callback = wrapper.bind({widget: result,callback: args.handler[h].callback});
+							result.eventListenerList.push({type: args.handler[h].name,callback: wrapper});
+						
+							result.addEventListener("keyup",callback);
+						}
+						
 					}
 					else {
 						if( !result.eventListenerList ){
@@ -788,8 +822,10 @@ const ZEN = {
 					
 					if( result.length == 0 ){
 						var doFinally = function(data){
-						   if( data.items && data.items.length > 0 ){
-								result.push({"action": "GET","response": JSON.stringify(data)}); 
+						   if( data.tagsCount > 0 ){
+								result.push({"action": "GET","response": JSON.stringify(data,null,5).replace(/\n( *)/g, function (match, p1) {
+																															return '<br>' + '&nbsp;'.repeat(p1.length);
+																														})}); 
 							}
 							else {
 								result.push({"action": "PUT","response": "NOIDEA"}); 
@@ -799,7 +835,7 @@ const ZEN = {
 						}
 						
 						
-						var url = "http://localhost:8080/restservice?contenttype=ZEN&input=" + ZEN.replaceAll(args.input," ","%20");
+						var url = "http://localhost:8080/restservice?contenttype=ZEN&fl=type_s,tagger_text,output&input=" + ZEN.replaceAll(args.input," ","%20");
 					
 						let headers = [{name: "Authorization",value: ""}];//,{name: "Content-Type",value: "application/x-www-form-urlencoded"}];
 						let newCallback = doFinally.bind({});
