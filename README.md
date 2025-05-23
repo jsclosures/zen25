@@ -27,9 +27,7 @@ curl -X POST -H 'Content-type:application/json'  http://localhost:8983/solr/tagg
       ]}
     },
 
-  "add-field":{"name":"tagger_text", "type":"tag", "stored":false },
-
-  "add-copy-field":{"source":"name", "dest":["tagger_text"]}
+  "add-field":{"name":"tagger_text", "type":"tag", "stored":false,"multiValued": true }
 }'
 
 
